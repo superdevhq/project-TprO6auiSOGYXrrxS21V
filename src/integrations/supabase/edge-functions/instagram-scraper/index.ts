@@ -1,5 +1,6 @@
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// Import Supabase client from the Deno standard library
+import { createClient } from '@supabase/supabase-js';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 
 // Initialize Supabase client
