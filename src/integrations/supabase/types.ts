@@ -192,6 +192,139 @@ export type Database = {
         }
         Relationships: []
       }
+      instagram_comments: {
+        Row: {
+          comment_id: string
+          created_at: string | null
+          id: string
+          post_id: string
+          profile_picture: string | null
+          text: string | null
+          timestamp: string | null
+          updated_at: string | null
+          username: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string | null
+          id?: string
+          post_id: string
+          profile_picture?: string | null
+          text?: string | null
+          timestamp?: string | null
+          updated_at?: string | null
+          username: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string | null
+          id?: string
+          post_id?: string
+          profile_picture?: string | null
+          text?: string | null
+          timestamp?: string | null
+          updated_at?: string | null
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instagram_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "instagram_posts"
+            referencedColumns: ["post_id"]
+          },
+        ]
+      }
+      instagram_posts: {
+        Row: {
+          caption: string | null
+          created_at: string | null
+          id: string
+          image_url: string | null
+          likes_count: number | null
+          post_id: string
+          profile_username: string
+          timestamp: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          likes_count?: number | null
+          post_id: string
+          profile_username: string
+          timestamp?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          likes_count?: number | null
+          post_id?: string
+          profile_username?: string
+          timestamp?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instagram_posts_profile_username_fkey"
+            columns: ["profile_username"]
+            isOneToOne: false
+            referencedRelation: "instagram_profiles"
+            referencedColumns: ["username"]
+          },
+        ]
+      }
+      instagram_profiles: {
+        Row: {
+          bio: string | null
+          created_at: string | null
+          followers_count: number | null
+          following_count: number | null
+          full_name: string | null
+          id: string
+          is_verified: boolean | null
+          posts_count: number | null
+          profile_picture: string | null
+          raw_data: Json | null
+          updated_at: string | null
+          username: string
+        }
+        Insert: {
+          bio?: string | null
+          created_at?: string | null
+          followers_count?: number | null
+          following_count?: number | null
+          full_name?: string | null
+          id?: string
+          is_verified?: boolean | null
+          posts_count?: number | null
+          profile_picture?: string | null
+          raw_data?: Json | null
+          updated_at?: string | null
+          username: string
+        }
+        Update: {
+          bio?: string | null
+          created_at?: string | null
+          followers_count?: number | null
+          following_count?: number | null
+          full_name?: string | null
+          id?: string
+          is_verified?: boolean | null
+          posts_count?: number | null
+          profile_picture?: string | null
+          raw_data?: Json | null
+          updated_at?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
       personal_records: {
         Row: {
           created_at: string
@@ -259,6 +392,35 @@ export type Database = {
           username?: string | null
         }
         Relationships: []
+      }
+      scraping_history: {
+        Row: {
+          id: string
+          profile_username: string
+          scraped_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          id?: string
+          profile_username: string
+          scraped_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          profile_username?: string
+          scraped_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scraping_history_profile_username_fkey"
+            columns: ["profile_username"]
+            isOneToOne: false
+            referencedRelation: "instagram_profiles"
+            referencedColumns: ["username"]
+          },
+        ]
       }
       workouts: {
         Row: {
