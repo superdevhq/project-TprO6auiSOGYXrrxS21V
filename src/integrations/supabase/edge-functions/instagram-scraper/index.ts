@@ -1,12 +1,13 @@
 
-// Import Supabase client using the Deno-compatible approach
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
+// Define CORS headers for cross-origin requests
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
-// Initialize Supabase client
+// Initialize Supabase client using fetch directly
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Initialize Apify API key
 const APIFY_API_TOKEN = Deno.env.get('APIFY_API_TOKEN') ?? '';
@@ -14,8 +15,9 @@ const APIFY_API_TOKEN = Deno.env.get('APIFY_API_TOKEN') ?? '';
 // Define the handler for the edge function
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
-  const corsResponse = handleCors(req);
-  if (corsResponse) return corsResponse;
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
 
   // Only allow POST requests
   if (req.method !== 'POST') {
@@ -48,19 +50,28 @@ Deno.serve(async (req) => {
     const username = usernameMatch[1];
     
     // Check if we have cached data for this profile
-    const { data: existingProfile, error: profileError } = await supabase
-      .from('instagram_profiles')
-      .select('*')
-      .eq('username', username)
-      .single();
+    const profileResponse = await fetch(`${supabaseUrl}/rest/v1/instagram_profiles?username=eq.${username}&select=*`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    const profiles = await profileResponse.json();
+    const existingProfile = profiles.length > 0 ? profiles[0] : null;
     
     if (existingProfile) {
       // Get posts for this profile
-      const { data: posts, error: postsError } = await supabase
-        .from('instagram_posts')
-        .select('*')
-        .eq('profile_id', existingProfile.id)
-        .order('created_at', { ascending: false });
+      const postsResponse = await fetch(`${supabaseUrl}/rest/v1/instagram_posts?profile_id=eq.${existingProfile.id}&select=*&order=created_at.desc`, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const posts = await postsResponse.json();
       
       // Check if the data is recent (less than 24 hours old)
       const lastUpdated = new Date(existingProfile.updated_at);
@@ -132,15 +143,20 @@ Deno.serve(async (req) => {
     // Insert or update the profile
     let profileId;
     if (existingProfile) {
-      const { data: updatedProfile, error: updateError } = await supabase
-        .from('instagram_profiles')
-        .update(profileToInsert)
-        .eq('id', existingProfile.id)
-        .select()
-        .single();
+      // Update existing profile
+      const updateResponse = await fetch(`${supabaseUrl}/rest/v1/instagram_profiles?id=eq.${existingProfile.id}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify(profileToInsert),
+      });
       
-      if (updateError) {
-        console.error('Error updating profile:', updateError);
+      if (!updateResponse.ok) {
+        console.error('Error updating profile:', await updateResponse.text());
         return new Response(JSON.stringify({ error: 'Failed to update profile data' }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -149,21 +165,28 @@ Deno.serve(async (req) => {
       
       profileId = existingProfile.id;
     } else {
-      const { data: insertedProfile, error: insertError } = await supabase
-        .from('instagram_profiles')
-        .insert(profileToInsert)
-        .select()
-        .single();
+      // Insert new profile
+      const insertResponse = await fetch(`${supabaseUrl}/rest/v1/instagram_profiles`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify(profileToInsert),
+      });
       
-      if (insertError) {
-        console.error('Error inserting profile:', insertError);
+      if (!insertResponse.ok) {
+        console.error('Error inserting profile:', await insertResponse.text());
         return new Response(JSON.stringify({ error: 'Failed to store profile data' }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       
-      profileId = insertedProfile.id;
+      const insertedProfiles = await insertResponse.json();
+      profileId = insertedProfiles[0].id;
     }
     
     // Process and store posts
@@ -182,42 +205,66 @@ Deno.serve(async (req) => {
     
     if (postsToInsert.length > 0) {
       // Delete existing posts for this profile
-      await supabase
-        .from('instagram_posts')
-        .delete()
-        .eq('profile_id', profileId);
+      await fetch(`${supabaseUrl}/rest/v1/instagram_posts?profile_id=eq.${profileId}`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+      });
       
       // Insert new posts
-      const { error: postsInsertError } = await supabase
-        .from('instagram_posts')
-        .insert(postsToInsert);
+      const postsInsertResponse = await fetch(`${supabaseUrl}/rest/v1/instagram_posts`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(postsToInsert),
+      });
       
-      if (postsInsertError) {
-        console.error('Error inserting posts:', postsInsertError);
+      if (!postsInsertResponse.ok) {
+        console.error('Error inserting posts:', await postsInsertResponse.text());
       }
     }
     
     // Record the scraping in history
-    await supabase
-      .from('instagram_scrape_history')
-      .insert({
+    await fetch(`${supabaseUrl}/rest/v1/instagram_scrape_history`, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
         profile_id: profileId,
         username: username,
         status: 'success',
-      });
+      }),
+    });
     
     // Get the updated profile and posts
-    const { data: updatedProfile } = await supabase
-      .from('instagram_profiles')
-      .select('*')
-      .eq('id', profileId)
-      .single();
+    const updatedProfileResponse = await fetch(`${supabaseUrl}/rest/v1/instagram_profiles?id=eq.${profileId}&select=*`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
     
-    const { data: updatedPosts } = await supabase
-      .from('instagram_posts')
-      .select('*')
-      .eq('profile_id', profileId)
-      .order('timestamp', { ascending: false });
+    const updatedProfiles = await updatedProfileResponse.json();
+    const updatedProfile = updatedProfiles.length > 0 ? updatedProfiles[0] : null;
+    
+    const updatedPostsResponse = await fetch(`${supabaseUrl}/rest/v1/instagram_posts?profile_id=eq.${profileId}&select=*&order=timestamp.desc`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    const updatedPosts = await updatedPostsResponse.json();
     
     return new Response(JSON.stringify({
       profile: updatedProfile,
