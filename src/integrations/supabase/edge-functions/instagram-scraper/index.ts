@@ -1,6 +1,6 @@
 
-// Import Supabase client from the Deno standard library
-import { createClient } from '@supabase/supabase-js';
+// Import Supabase client using npm specifier for Deno
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 
 // Initialize Supabase client
