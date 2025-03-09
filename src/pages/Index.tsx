@@ -34,14 +34,6 @@ const Index = () => {
         throw new Error('No data returned from scraper');
       }
 
-      // Check if we got data from cache
-      if (data.cached) {
-        toast({
-          title: "Using cached data",
-          description: "Showing profile data from our cache (less than 24 hours old)",
-        });
-      }
-
       // For now, use mock data since the edge function isn't fully implemented yet
       setProfileData(mockInstagramProfile);
       
