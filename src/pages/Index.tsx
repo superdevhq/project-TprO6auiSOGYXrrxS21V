@@ -42,21 +42,14 @@ const Index = () => {
         });
       }
 
-      // Transform the data to match our frontend model if needed
-      const transformedData: InstagramProfile = {
-        username: data.data.username,
-        fullName: data.data.fullName,
-        profilePicture: data.data.profilePicture,
-        bio: data.data.bio,
-        postsCount: data.data.postsCount,
-        followersCount: data.data.followersCount,
-        followingCount: data.data.followingCount,
-        isVerified: data.data.isVerified,
-        followers: data.data.followers || [],
-        posts: data.data.posts || []
-      };
-
-      setProfileData(transformedData);
+      // For now, use mock data since the edge function isn't fully implemented yet
+      setProfileData(mockInstagramProfile);
+      
+      // Show toast for development
+      toast({
+        title: "Using mock data",
+        description: "The scraper API is still in development. Using mock data for now.",
+      });
     } catch (err) {
       console.error('Error scraping profile:', err);
       setError("Failed to scrape profile. Please try again or try a different profile.");
