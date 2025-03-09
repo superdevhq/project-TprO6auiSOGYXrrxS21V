@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Instagram } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface InstagramUrlFormProps {
   onSubmit: (url: string) => void;
@@ -14,7 +15,7 @@ const InstagramUrlForm = ({ onSubmit, isLoading }: InstagramUrlFormProps) => {
   const [url, setUrl] = useState("");
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Basic validation
@@ -62,7 +63,7 @@ const InstagramUrlForm = ({ onSubmit, isLoading }: InstagramUrlFormProps) => {
             className="w-full bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600"
             disabled={isLoading}
           >
-            {isLoading ? "Loading..." : "Scrape Profile"}
+            {isLoading ? "Scraping Profile..." : "Scrape Profile"}
           </Button>
         </form>
       </CardContent>

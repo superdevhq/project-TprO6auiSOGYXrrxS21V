@@ -4,31 +4,73 @@ import InstagramUrlForm from "@/components/InstagramUrlForm";
 import ProfileInfo from "@/components/ProfileInfo";
 import FollowersList from "@/components/FollowersList";
 import PostsList from "@/components/PostsList";
-import { mockInstagramProfile } from "@/lib/mockData";
+import { mockInstagramProfile, InstagramProfile } from "@/lib/mockData";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Users, Image } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [profileData, setProfileData] = useState(null);
+  const [profileData, setProfileData] = useState<InstagramProfile | null>(null);
   const [error, setError] = useState("");
+  const { toast } = useToast();
 
-  const handleSubmit = (url: string) => {
+  const handleSubmit = async (url: string) => {
     setIsLoading(true);
     setError("");
     
-    // Simulate API call with a timeout
-    setTimeout(() => {
-      try {
-        // In a real app, this would be an API call to your backend
-        // For now, we'll just use the mock data
-        setProfileData(mockInstagramProfile);
-        setIsLoading(false);
-      } catch (err) {
-        setError("Failed to fetch profile data. Please try again.");
-        setIsLoading(false);
+    try {
+      // Call our Supabase Edge Function
+      const { data, error } = await supabase.functions.invoke('instagram-scraper', {
+        body: { instagramUrl: url }
+      });
+
+      if (error) {
+        throw new Error(error.message);
       }
-    }, 1500);
+
+      if (!data) {
+        throw new Error('No data returned from scraper');
+      }
+
+      // Check if we got data from cache
+      if (data.cached) {
+        toast({
+          title: "Using cached data",
+          description: "Showing profile data from our cache (less than 24 hours old)",
+        });
+      }
+
+      // Transform the data to match our frontend model if needed
+      const transformedData: InstagramProfile = {
+        username: data.data.username,
+        fullName: data.data.fullName,
+        profilePicture: data.data.profilePicture,
+        bio: data.data.bio,
+        postsCount: data.data.postsCount,
+        followersCount: data.data.followersCount,
+        followingCount: data.data.followingCount,
+        isVerified: data.data.isVerified,
+        followers: data.data.followers || [],
+        posts: data.data.posts || []
+      };
+
+      setProfileData(transformedData);
+    } catch (err) {
+      console.error('Error scraping profile:', err);
+      setError("Failed to scrape profile. Please try again or try a different profile.");
+      
+      // For development, use mock data as fallback
+      toast({
+        title: "Using mock data",
+        description: "Error connecting to scraper API. Using mock data instead.",
+        variant: "destructive"
+      });
+      setProfileData(mockInstagramProfile);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
