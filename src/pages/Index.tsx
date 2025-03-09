@@ -34,14 +34,38 @@ const Index = () => {
         throw new Error('No data returned from scraper');
       }
 
-      // For now, use mock data since the edge function isn't fully implemented yet
-      setProfileData(mockInstagramProfile);
+      // Transform the API response to match our InstagramProfile interface
+      const transformedData: InstagramProfile = {
+        username: data.profile.username,
+        fullName: data.profile.full_name || data.profile.username,
+        profilePicture: data.profile.profile_pic_url || '',
+        bio: data.profile.biography || '',
+        postsCount: data.profile.posts_count || 0,
+        followersCount: data.profile.followers_count || 0,
+        followingCount: data.profile.following_count || 0,
+        isVerified: data.profile.is_verified || false,
+        // Since we don't have followers data from the API, use empty array or mock data
+        followers: mockInstagramProfile.followers,
+        // Transform posts data
+        posts: (data.posts || []).map((post: any) => ({
+          id: post.post_id,
+          imageUrl: post.media_url,
+          caption: post.caption || '',
+          likesCount: post.likes_count || 0,
+          timestamp: post.timestamp || new Date().toISOString(),
+          // Since we don't have comments data from the API, use empty array
+          comments: []
+        }))
+      };
+
+      setProfileData(transformedData);
       
-      // Show toast for development
-      toast({
-        title: "Using mock data",
-        description: "The scraper API is still in development. Using mock data for now.",
-      });
+      if (data.cached) {
+        toast({
+          title: "Using cached data",
+          description: "This profile data was retrieved from our cache.",
+        });
+      }
     } catch (err) {
       console.error('Error scraping profile:', err);
       setError("Failed to scrape profile. Please try again or try a different profile.");
